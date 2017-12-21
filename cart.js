@@ -45,7 +45,7 @@ function CartDAO(database) {
                     items: doc.items
                 }
                 callback(userCart);
-            }).catch((err) => console.log(err))
+            }).catch((err) => assert.equal(null, err))
 
         // TODO-lab5 Replace all code above (in this method).
 
@@ -86,7 +86,7 @@ function CartDAO(database) {
         Promise.resolve(this.db.collection('cart').findOne({ userId: userId, 'items._id': itemId }, {"items.$": 1}))
         .then((doc) => {
             callback((doc) ? doc.items[0] : null);
-        }).catch((err) => console.log(err))
+        }).catch((err) => assert.equal(null, err))
         // TODO-lab6 Replace all code above (in this method).
     }
 
@@ -177,36 +177,42 @@ function CartDAO(database) {
         *
         */
 
-        var userCart = {
-            userId: userId,
-            items: []
-        }
-        var dummyItem = this.createDummyItem();
-        dummyItem.quantity = quantity;
-        userCart.items.push(dummyItem);
-        callback(userCart);
+        var updateDoc = {};
+        
+            if( quantity === 0){
+                // update the cart by removing from cart item with _id === itemId passed as parameter 
+                updateDoc =  { $pull: { items: { _id: itemId } } }; 
+            }
+            else{
+                // update the item's quantity in the user's cart by setting the quantity to passed quantity parameter
+                updateDoc = { $set: { "items.$.quantity" : quantity } };
+            }
+        
+        // Will update the first document found matching the query document.
+                this.db.collection("cart").findOneAndUpdate(
+                    { userId: userId, 'items._id': itemId },
+                    updateDoc,            
+                    // findOneAndUpdate() takes an options document as a parameter.
+                    // Here we are specifying that the database should insert a cart
+                    // if one doesn't already exist (i.e. "upsert: true") and that
+                    // findOneAndUpdate() should pass the updated document to the
+                    // callback function rather than the original document
+                    // (i.e., "returnOriginal: false").
+                    {
+                        upsert: true,
+                        returnOriginal: false
+                    },
+                    // Because we specified "returnOriginal: false", this callback
+                    // will be passed the updated document as the value of result.
+                    function(err, result) {
+                        assert.equal(null, err);
+                        // To get the actual document updated we need to access the
+                        // value field of the result.
+                        callback(result.value);
+                    });        
 
         // TODO-lab7 Replace all code above (in this method).
 
-    }
-
-    this.createDummyItem = function() {
-        "use strict";
-
-        var item = {
-            _id: 1,
-            title: "Gray Hooded Sweatshirt",
-            description: "The top hooded sweatshirt we offer",
-            slogan: "Made of 100% cotton",
-            stars: 0,
-            category: "Apparel",
-            img_url: "/img/products/hoodie.jpg",
-            price: 29.99,
-            quantity: 1,
-            reviews: []
-        };
-
-        return item;
     }
 
 }
